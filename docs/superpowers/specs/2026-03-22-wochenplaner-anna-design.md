@@ -1,7 +1,7 @@
 # Design Spec: Wochenplaner Anna
 
 **Datum:** 2026-03-22
-**Status:** Approved
+**Status:** In Review
 
 ---
 
@@ -54,180 +54,347 @@ WochenplanerAnna/
 
 ## Datenmodell
 
+### Kategorie-Keys (kanonisches Mapping)
+
+Interne String-Keys, konsistent in `db.js`, `data.js` und `render.js` verwendet:
+
+| Key | Anzeigename |
+|---|---|
+| `"complex"` | Komplexe Illustration |
+| `"moderate"` | Moderate Illustration |
+| `"quick"` | Schnellzeichnung |
+| `"orga"` | Orga & Verwaltung |
+| `"buffer"` | Flexibler Puffer |
+| `"event"` | Fester Termin (spezieller Block-Typ, keine Arbeitskategorie) |
+
+### Tag-Nummerierung
+
+`day: 0` = Montag, `day: 1` = Dienstag, …, `day: 6` = Sonntag.
+(Abweichend von `Date.getDay()` wo 0 = Sonntag — hier bewusst Montag-first.)
+
+### Datenstrukturen
+
 ```js
-// Basis-Template (Annas "ideale Woche" — Ausgangspunkt jeder neuen Woche)
+// Checklisten-Template-Schema
+checklistTemplate: {
+  id: "deliver-illustration",          // eindeutiger Key
+  title: "Illustration abliefern",
+  items: [
+    { text: "Datei exportieren", checked: false },
+    { text: "Rechnung stellen",  checked: false },
+    { text: "Portfolio updaten", checked: false },
+  ]
+}
+
+// Basis-Template (Annas "ideale Woche")
 template: {
   blocks: [
-    { day: 0, startTime: "09:00", duration: 30, category: "event", title: "Akquise-Gruppe" },
-    { day: 0, startTime: "09:30", duration: 210, category: "complex", title: "Komplexe Illustration" },
-    // ...
+    // day: 0 = Montag, duration in Minuten
+    { day: 0, startTime: "09:00", duration: 30,  category: "event",    title: "Akquise-Gruppe" },
+    { day: 0, startTime: "09:30", duration: 210, category: "complex",  title: "Komplexe Illustration" },
+    { day: 0, startTime: "13:30", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
+    { day: 0, startTime: "14:30", duration: 60,  category: "buffer",   title: "Puffer" },
+
+    { day: 1, startTime: "09:00", duration: 180, category: "moderate", title: "Moderate Illustration" },
+    { day: 1, startTime: "13:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
+    { day: 1, startTime: "14:00", duration: 60,  category: "buffer",   title: "Puffer" },
+
+    { day: 2, startTime: "09:00", duration: 240, category: "complex",  title: "Komplexe Illustration" },
+    { day: 2, startTime: "13:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
+    { day: 2, startTime: "14:00", duration: 60,  category: "buffer",   title: "Puffer" },
+
+    { day: 3, startTime: "09:00", duration: 180, category: "moderate", title: "Moderate Illustration" },
+    { day: 3, startTime: "13:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
+    { day: 3, startTime: "14:00", duration: 60,  category: "buffer",   title: "Puffer" },
+
+    { day: 4, startTime: "09:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
+    { day: 4, startTime: "10:00", duration: 120, category: "orga",     title: "Orga & Verwaltung" },
+    { day: 4, startTime: "12:00", duration: 120, category: "buffer",   title: "Puffer / Abschluss" },
+
+    { day: 5, startTime: "10:00", duration: 120, category: "moderate", title: "Moderate Illustration (optional)" },
+    { day: 5, startTime: "12:00", duration: 60,  category: "buffer",   title: "Puffer (optional)" },
+    // day: 6 (Sonntag) — leer, freier Tag
   ],
-  checklistTemplates: { /* wiederverwendbare Checklisten */ }
+  checklistTemplates: {
+    "deliver-illustration": {
+      id: "deliver-illustration",
+      title: "Illustration abliefern",
+      items: [
+        { text: "Datei exportieren (300dpi, CMYK)", checked: false },
+        { text: "Rechnung stellen", checked: false },
+        { text: "Portfolio-Seite updaten", checked: false },
+        { text: "Social Media Post vorbereiten", checked: false },
+      ]
+    }
+  }
 }
 
-// Konkrete Woche (ISO-KW als Key)
+// Konkrete Woche (ISO-KW als Key, z.B. "2026-W13")
 weeks["2026-W13"]: {
   goal: "NZZ-Titelseite finalisieren, Instagram-Post vorbereiten",
-  dayGoals: { "2026-03-23": "Skizzenphase abschließen", ... },
-  blocks: [ /* Kopie des Templates, individuell angepasst */ ]
+  dayGoals: {
+    "2026-03-23": "Skizzenphase abschließen",
+    "2026-03-24": "Farben finalisieren",
+  },
+  blocks: [
+    // Kopie der Template-Blöcke, plus individuelle Anpassungen dieser Woche
+    // Jeder Block bekommt zusätzlich:
+    {
+      id: "block-uuid",              // eindeutige ID pro Block-Instanz
+      day: 0,
+      startTime: "09:00",
+      duration: 30,
+      category: "event",
+      title: "Akquise-Gruppe",
+      fromTemplate: true,            // wurde vom Template übernommen
+      tasks: [{ text: "Aufgabe", done: false }],     // Aufgabenliste (Freitext)
+      checklist: [{ text: "Schritt", checked: false }], // Checkliste (Checkbox)
+      timerState: "idle",            // "idle" | "running" | "paused" | "overtime" | "done"
+                                     // "warning" ist KEIN gespeicherter State — wird render-only
+                                     // berechnet: timerElapsed >= (duration*60 - 900) && timerState === "running"
+      timerElapsed: 0,               // vergangene Sekunden (für Pause/Resume)
+    }
+  ]
 }
 
-// Monatsziele
+// Monatsziele (YYYY-MM als Key)
 goals["2026-04"]: {
   monthly: "3 Editorial-Illustrationen fertigstellen, 2 Verlage anschreiben"
 }
 
-// Feste Termine (werden beim Template-Laden automatisch eingefügt)
-fixedEvents: [
-  { day: 0, startTime: "09:00", duration: 30, title: "Akquise-Gruppe", recurring: "weekly" }
-]
+// App-Metadaten (in IndexedDB store "meta", key-value)
+meta["lastBackupDate"]: "2026-03-15T10:30:00Z"  // ISO-String, gesetzt beim Export
 ```
 
----
+### `fixedEvents` vs. Template-Blöcke
 
-## Die 5 Arbeitskategorien
-
-| Kategorie | Farbe | Hex |
-|---|---|---|
-| Komplexe Illustration | Tieforange | `#c4622d` |
-| Moderate Illustration | Warmes Ocker | `#d4956a` |
-| Schnellzeichnung | Hellbeige | `#e8c9a0` |
-| Orga & Verwaltung | Schieferblau | `#7a8fa6` |
-| Flexibler Puffer | Olivgrün | `#a8b89a` |
-| Fester Termin | Dunkelbraun | `#4a3728` |
+Feste Termine (z.B. Akquise-Gruppe) werden **ausschließlich als Block im Template** gespeichert — es gibt kein separates `fixedEvents`-Array. Beim Anlegen einer neuen Woche werden Template-Blöcke mit `category: "event"` wie alle anderen übernommen, können aber nicht auf "Nur für diese Woche" geändert werden. Strukturänderungen an `event`-Blöcken propagieren immer ins Template.
 
 ---
 
-## Basis-Template (Vorschlag beim ersten Start)
+## Die 5 Arbeitskategorien + Fester Termin
 
-| Zeit | Montag | Dienstag | Mittwoch | Donnerstag | Freitag | Samstag | Sonntag |
-|---|---|---|---|---|---|---|---|
-| 09:00–09:30 | Akquise-Gruppe | — | — | — | — | — | Frei |
-| 09:30–13:00 | Komplexe Illus. (3,5h) | Moderate Illus. (3h) | Komplexe Illus. (4h) | Moderate Illus. (3h) | Schnellzeichnung (1h) + Orga (2h) | Moderate Illus. (2h, optional) | Frei |
-| 13:00–15:00 | Schnellzeichnung (1h) + Puffer (1h) | Schnellzeichnung (1h) + Puffer (1h) | Fester Termin (Platzhalter) | Schnellzeichnung (1h) + Puffer (1h) | Puffer / Abschluss (2h) | Puffer (1h, optional) | Frei |
+**5 Arbeitskategorien** (für Zeitplanung und Statistik):
 
-**Wochensumme:** ~30h aktive Arbeit · Komplexe Blöcke morgens (höchste Energie) · So frei
+| Kategorie | Key | Farbe | Hex |
+|---|---|---|---|
+| Komplexe Illustration | `"complex"` | Tieforange | `#c4622d` |
+| Moderate Illustration | `"moderate"` | Warmes Ocker | `#d4956a` |
+| Schnellzeichnung | `"quick"` | Hellbeige | `#e8c9a0` |
+| Orga & Verwaltung | `"orga"` | Schieferblau | `#7a8fa6` |
+| Flexibler Puffer | `"buffer"` | Olivgrün | `#a8b89a` |
 
-**Prinzip:** Deep Work zuerst (Cal Newport), kreative Varianz über die Woche, bewusste Erholung eingebaut.
+**Spezieller Block-Typ** (kein Arbeitsblock, kein Timer):
+
+| Typ | Key | Farbe | Hex |
+|---|---|---|---|
+| Fester Termin | `"event"` | Dunkelbraun | `#4a3728` |
+
+`event`-Blöcke haben keinen Timer, keine Aufgabenliste, keine Zeitschranke. Nur Titel und Notizfeld.
+
+---
+
+## Basis-Template — Wochensumme
+
+Das Template ist ein **Startvorschlag** (nicht alle 8h pro Tag belegt — bewusst, um Luft zu lassen):
+
+| Kategorie | Stunden/Woche |
+|---|---|
+| Komplexe Illustration | ~7,5h (Mo 3,5h + Mi 4h) |
+| Moderate Illustration | ~8h (Di 3h + Do 3h + Sa 2h) |
+| Schnellzeichnung | ~4h (4× 1h) |
+| Orga & Verwaltung | ~2h (Fr 2h) |
+| Flexibler Puffer | ~5h (verteilt) |
+| **Gesamt** | **~26,5h** |
 
 ---
 
 ## UI-Struktur
 
+### Kalender-Raster
+
+- **Sichtbarer Zeitbereich:** 08:00–20:00 (scrollbar bei Bedarf)
+- **Zeitachse:** Links, Stundenmarken alle 60min, Halbstundenmarken dezent
+- **Mindesthöhe pro Stunde:** 60px (1px pro Minute)
+
 ### Header-Bereich
+
 ```
 [Monatsziel: April — 3 Editorial-Illustrationen fertigstellen...]
-[KW 13  ←  →]  [Wochenansicht | Tagesansicht]  [Template]  [PDF]  [Backup]
+[KW 13  ←  →]  [Wochenansicht | Tagesansicht]  [Template]  [PDF ↓]  [Backup ↓]
 [Wochenziel: NZZ-Titelseite finalisieren...]
 ```
 
 ### Wochenansicht (Default)
-- Spalten: Mo–So
-- Zeilen: Stunden (scrollbar)
-- Über jeder Spalte: editierbares Tagesziel-Feld
-- Blöcke: farbige Kacheln mit Titel, Dauer, Timer-Status
-- Klick auf Block → Detailpanel
+
+- Spalten: Mo–So (7 Spalten + Zeitachse links)
+- Über jeder Spalte: editierbares Tagesziel-Feld (Klick → inline edit)
+- Blöcke: farbige Kacheln, positioniert nach `startTime` und `duration`
+- Klick auf Block → Detailpanel (rechts oder als Overlay)
 
 ### Tagesansicht
-- Eine Spalte groß + restliche Woche als Mini-Streifen rechts
-- Wechsel via Tab oben
+
+- Aktiver Tag als breite Hauptspalte (links)
+- Restliche 6 Tage als schmale nicht-interaktive Mini-Streifen (rechts, nur zur Orientierung)
+- Beim Wechsel in Tagesansicht: der angeklickte Tag oder der heutige Tag wird gezeigt
+- Mini-Streifen sind klickbar zum Wechsel des angezeigten Tages
+- Detailpanel, Timer und Block-Interaktion identisch zur Wochenansicht
 
 ### Block-Detailpanel
-- Titel (editierbar)
-- Zeitschranke (editierbar)
-- Optionale Aufgabenliste (Freitext-Items)
-- Checkliste (via Template ladbar oder manuell)
-- Timer starten/stoppen
-- Kategorie ändern
+
+Öffnet sich seitlich (Slide-in) bei Klick auf einen Block. Felder:
+
+- **Titel** (inline editierbar)
+- **Kategorie** (Dropdown mit den 5 Kategorien + "event")
+- **Startzeit / Dauer** (editierbare Felder — kein Drag-to-Resize, nur per Panel)
+- **Aufgabenliste** — Freitext-Items mit Abhak-Funktion (kein Template, schnelle Notizen)
+- **Checkliste** — Checkbox-Items, via gespeichertem Checklisten-Template ladbar oder manuell befüllt
+- **Timer-Steuerung** — Start / Pause / Zurücksetzen / Als erledigt markieren
+- **Notiz** — Freitextfeld (nur für `event`-Blöcke relevant)
+
+**Unterschied Aufgabenliste vs. Checkliste:**
+- *Aufgabenliste*: schnelle Freitext-To-dos, nicht wiederverwendbar, kein Template
+- *Checkliste*: strukturierte Checkbox-Liste, aus gespeichertem Template ladbar, für wiederkehrende Workflows
 
 ### Block-Interaktion
-- Klick → Detailpanel öffnen
-- Drag → Block verschieben (innerhalb der Woche)
-- Rechtsklick → Schnellmenü: duplizieren, löschen, Checklisten-Template laden
+
+- **Klick** → Detailpanel öffnen
+- **Doppelklick auf leeren Slot** → neuer Block wird mit Standardwerten erstellt (Kategorie: "buffer", Dauer: 60min, Snap auf 15-Minuten-Raster), Detailpanel öffnet sich sofort
+- **Drag** → Block verschieben (Snap auf 15-Minuten-Raster, nur innerhalb der aktuellen Woche)
+- **Drag-to-Resize** → nicht implementiert (Dauer nur über Detailpanel ändern)
+- **Rechtsklick** → Schnellmenü: Duplizieren, Löschen, Checklisten-Template laden
+- **Block-Überlappung** → wird verhindert: beim Ablegen eines Blocks auf einem besetzten Slot springt er zurück zur Ausgangsposition und zeigt einen kurzen Toast-Fehler (*"Dieser Zeitraum ist bereits belegt"*)
+- **Löschen (normale Arbeitsblöcke):** Bestätigungsdialog *"Block löschen?"*. Template-Blöcke (`fromTemplate: true`, Kategorie ≠ `"event"`) zeigen: *"Nur in dieser Woche löschen"* (Standard) oder *"Aus Template entfernen"*. Löschen in einer Woche beeinflusst keine anderen Wochen.
+- **Löschen (`event`-Blöcke):** Kein Dialog-Choice — `event`-Blöcke propagieren immer. Einfacher Bestätigungsdialog: *"Festen Termin aus Template entfernen? Er wird auch in künftigen Wochen nicht mehr erscheinen."*
+
+### Snap-Raster
+
+- Alle Zeiten (Startzeit, Drag, Doppelklick) rasten auf **15-Minuten-Intervalle** ein: 09:00, 09:15, 09:30, 09:45 …
+- Minimale Block-Dauer: **15 Minuten**
+- Eingaben im Detailpanel werden beim Speichern auf das nächste 15-Minuten-Intervall gerundet
+
+### Template-Editor
+
+Erreichbar über den "Template"-Button im Header. Öffnet sich als eigene Vollansicht (kein Modal). Inhalte:
+
+- Wochenraster des Basis-Templates (identisches Layout wie Wochenansicht, aber mit "Template"-Kennzeichnung)
+- Blöcke editierbar, hinzufügbar, löschbar
+- Abschnitt "Checklisten-Templates": Liste aller gespeicherten Templates mit Erstellen / Umbenennen / Löschen / Items bearbeiten
+- "Zurück zum Planer"-Button
 
 ---
 
 ## Timer & Nudging-System
 
 ### Block-Zustände
+
 ```
-[bereit] → [läuft ⏱] → [fast vorbei 🟡 <15min] → [Zeit um 🔴] → [abgeschlossen ✓]
+                    ┌─────────────────────────────────────┐
+                    ↓                                     │
+[idle] → [running ⏱] → [overtime 🔴] → [done ✓]        │ (pause/resume)
+              │                                          │
+              └──────────────── [paused ⏸] ─────────────┘
 ```
 
-### Visuelles Feedback
-- Laufender Block zeigt Fortschrittsbalken + Countdown (`3:42:15`) direkt im Block
-- Farbwechsel: Orange → Gelb (15min verbleibend) → Rot (Zeit abgelaufen)
-- Tages-Gesamtzähler im Header: *"Heute: 3h 20min / 8h geplant"*
+- `warning` (visuell: pulsierender Rahmen) ist **render-only**, kein gespeicherter State.
+  Bedingung: `timerState === "running"` UND verbleibende Zeit < 15 Minuten.
+- `paused` ist aus allen aktiven States erreichbar (`running`, `overtime`).
+  Aus `paused` geht es immer zurück zu dem State, aus dem pausiert wurde.
+- `done` ist ein Endstate — kein Übergang zurück (nur via explizitem Reset → `idle`).
+
+### Visuelles Feedback (ohne Hintergrundfarbe zu überschreiben)
+
+Der Timer-Status wird über einen **separaten visuellen Layer** kommuniziert, damit die Kategoriefarbe erhalten bleibt:
+
+- **Laufend:** Fortschrittsbalken am unteren Rand des Blocks (wird kleiner), Countdown im Block sichtbar
+- **Warnung (<15min):** Oranger pulsierender **Rahmen** um den Block, Countdown wird gelb
+- **Overtime:** Roter pulsierender **Rahmen** + roter Countdown mit `+` Prefix (`+00:05:32`)
+- **Erledigt:** Dezentes Häkchen-Icon, Opacity leicht reduziert
+
+Tages-Gesamtzähler im Header: *"Heute: 3h 20min / 6h 30min geplant"*
+Der **"geplant"**-Wert ist die **Summe aller Block-Dauern des heutigen Tages** (nur Arbeitskategorien, ohne `event`-Blöcke). Kein hardcoded 8h-Wert — der Wert ergibt sich aus dem tatsächlichen Plan.
 
 ### Browser-Notifications
-- **Warnung:** 15 Minuten vor Ablauf → *"Noch 15 Minuten für 'Komplexe Illustration'"*
-- **Zeit um:** Beim Ablauf → *"Deine Zeit für 'Komplexe Illustration' ist um. Gut gemacht!"*
-- **Nachkick:** 15 Minuten nach Ablauf (falls Block noch läuft) → *"Du arbeitest 15min über die Zeit — bewusste Entscheidung?"*
 
-### Einschränkung
-Timer läuft nur bei geöffnetem Tab — kein Background-Service. Bewusst: aktive Nutzung, keine passive Überwachung.
+Notification-Permission wird beim **ersten Timer-Start** angefragt (nicht beim App-Load). Falls der Nutzer ablehnt: ausschließlich visuelles In-App-Feedback (kein Fehler, kein erneutes Fragen).
+
+| Zeitpunkt | Nachricht |
+|---|---|
+| 15min vor Ablauf | *"Noch 15 Minuten für '[Titel]'"* |
+| Ablauf | *"Zeit für '[Titel]' ist um. Gut gemacht — mach kurz Pause!"* |
+| 15min nach Ablauf (falls noch läuft) | *"Du arbeitest 15min über die Zeit — bewusste Entscheidung?"* |
+
+**Gleichzeitige Timer:** Es kann immer nur **ein Timer gleichzeitig laufen**. Startet Anna einen zweiten Block, wird der erste automatisch pausiert (nicht gestoppt — `timerState` wechselt auf `"paused"`). Der Header zeigt immer den aktuell laufenden Block.
+
+**Tab-Hintergrund:** Der Timer läuft weiter wenn der Tab im Hintergrund ist (Page Visibility API: kein Pause bei `hidden`). Die verstrichene Zeit wird via `Date.now()`-Delta berechnet, nicht via `setInterval`-Zähler — so gehen keine Sekunden verloren. Kein Background-Service Worker.
+
+Timer läuft nicht mehr wenn der Tab **geschlossen** wird. `timerElapsed` wird beim letzten Tick gespeichert.
 
 ---
 
 ## Template-System & Wochenübernahme
 
 ### Neue Woche starten
-Beim ersten Öffnen einer neuen Kalenderwoche erscheint ein Dialog:
-- **A — Frisches Template** (Basis-Vorlage)
-- **B — Vorwoche kopieren** (mit allen individuellen Anpassungen)
+
+Beim ersten Öffnen einer noch nicht angelegten Kalenderwoche erscheint ein Dialog:
+
+- **A — Frisches Template** (Basis-Vorlage unverändert übernehmen)
+- **B — Vorwoche kopieren** (alle individuellen Anpassungen der letzten Woche)
 - **C — Manuell** (leere Woche, selbst befüllen)
 
 ### Änderungen propagieren
-Beim Bearbeiten eines Template-Blocks:
-- *"Nur für diese Woche"* — lokale Änderung
-- *"Ab jetzt immer so"* — aktualisiert das Basis-Template
 
-### Checklisten-Templates
-- Wiederverwendbare Checklisten (z.B. "Illustration abliefern": Datei exportieren, Rechnung stellen, Portfolio updaten)
-- Per Rechtsklick auf jeden Block ladbar
-- Im Template-Editor verwaltbar
+**Trigger:** Die Propagations-Frage erscheint nur wenn der Nutzer an einem Block **strukturelle Änderungen** speichert (Startzeit, Dauer oder Kategorie) — nicht bei Inhaltsänderungen (Titel, Aufgabenliste, Checkliste, Notiz).
+
+**Gilt nicht für `event`-Blöcke** — diese propagieren immer automatisch ins Template.
+
+Dialog-Optionen:
+- *"Nur für diese Woche"* — lokale Änderung, Template bleibt unberührt
+- *"Ab jetzt immer so"* — aktualisiert das Basis-Template für alle künftigen Wochen
 
 ---
 
 ## Ziele-System
 
 ### Drei Ebenen
+
 | Ebene | Wo | Wann setzen |
 |---|---|---|
-| Monatsziel | Header oben, immer sichtbar | Einmal pro Monat |
-| Wochenziel | Unter KW-Navigation | Beim Wochenstart |
-| Tagesziel | Über jeder Tagesspalte | Täglich / beim Wochenstart |
+| Monatsziel | Header oben, immer sichtbar | Einmal pro Monat, bleibt über Wochenwechsel |
+| Wochenziel | Unter KW-Navigation | Beim Wochenstart (oder beim Anlegen der Woche) |
+| Tagesziel | Über jeder Tagesspalte | Täglich oder beim Wochenstart |
 
-- Alle Felder inline editierbar — kein Modal, kein separates Menü
-- Monatsziel bleibt über Wochenwechsel sichtbar
+Alle Felder sind inline editierbar (Klick → Textcursor erscheint, Enter oder Blur zum Speichern). Kein Modal, kein separates Menü.
 
 ---
 
 ## PDF-Export
 
-- **Inhalt:** Aktuelle Wochenansicht inkl. Ziele, ohne Timer/interaktive Elemente
+- **Inhalt:** Aktuelle Wochenansicht inkl. aller Ziele, ohne Timer/interaktive Elemente
 - **Format:** A4 Querformat (Landscape) — eine Woche pro Seite
-- **Technik:** `html2canvas` rendert Wochenansicht → `jsPDF` bettet als Bild ein
-- **Trigger:** Klick auf PDF-Button → sofortiger Download
-- **Optional:** Tagesansicht als A4 Hochformat exportieren
+- **Technik:** `html2canvas` rendert die `#week-grid`-Komponente → `jsPDF` bettet als Bild ein
+- **Trigger:** Klick auf "PDF ↓"-Button → sofortiger Download (`wochenplaner-KW13-2026.pdf`)
+- **Optional:** Klick auf PDF-Button in der Tagesansicht → A4 Hochformat des aktuell angezeigten Tages
 
 ---
 
 ## Datensicherung
 
 - **Primärspeicher:** IndexedDB (wird nicht durch Browser-Cache-Clearing gelöscht)
-- **Backup:** JSON-Export per Button ("Backup speichern") → Datei auf Festplatte
-- **Restore:** JSON-Import per Button ("Backup laden")
-- **Erinnerung:** Hinweis wenn >7 Tage kein Backup erstellt wurde
+- **Backup exportieren:** Klick auf "Backup ↓"-Button → Download einer JSON-Datei (`wochenplaner-backup-2026-03-22.json`)
+- **Backup laden:** "Backup laden"-Button → Dateiauswahl-Dialog → Daten werden importiert (bestehende Daten werden überschrieben, mit Bestätigungsdialog)
+- **Backup-Erinnerung:** Bei jedem App-Start wird `meta["lastBackupDate"]` geprüft. Ist der Wert `null` (noch nie gesichert) oder liegt er >7 Tage zurück → Toast oben rechts: *"Letztes Backup vor X Tagen — jetzt sichern?"* bzw. bei `null`: *"Noch kein Backup erstellt — jetzt sichern?"*
 
 ---
 
 ## Visuelles Design
 
 ### Stil
-"Warm & Atelierisch" — cremefarbene Töne, warme Akzente, handwerkliches Gefühl. Wie ein hochwertiges Skizzenbuch für Kreative. Einladend, nicht klinisch.
+
+"Warm & Atelierisch" — cremefarbene Töne, warme Akzente, handwerkliches Gefühl. Wie ein hochwertiges Skizzenbuch. Einladend, nicht klinisch.
 
 ### Farbpalette
+
 | Rolle | Farbe | Hex |
 |---|---|---|
 | Hintergrund | Cremeweiß | `#fffdf9` |
@@ -238,8 +405,9 @@ Beim Bearbeiten eines Template-Blocks:
 | Akzent | Warmes Terra | `#d4956a` |
 
 ### Typografie
-- Serif-Schrift für Überschriften und Labels (Georgia als Fallback)
-- System-Sans für kleine UI-Elemente
+
+- **Primär:** Georgia (Serif) — für Überschriften, Ziel-Felder, Block-Titel
+- **UI-Elemente:** System-UI-Sans (system-ui, -apple-system, sans-serif) — für kleine Labels, Buttons, Zeitangaben
 
 ---
 
@@ -247,5 +415,6 @@ Beim Bearbeiten eines Template-Blocks:
 
 - Keine Multi-User-Funktion
 - Kein Backend / keine Cloud-Sync
-- Kein Mobile-first (Desktop-Planer, Responsive ist nice-to-have)
-- Keine Zeiterfassung rückwirkend / Reports
+- Kein Mobile-first (Desktop-Planer, Responsive nice-to-have)
+- Keine rückwirkende Zeiterfassung / Reports / Statistiken
+- Kein Drag-to-Resize für Blöcke
