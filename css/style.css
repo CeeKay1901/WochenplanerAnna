@@ -869,6 +869,51 @@ html, body {
   user-select: none;
 }
 
+/* ─── Category editor ────────────────────────────────────────────────────────── */
+.cat-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.cat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cat-color-input {
+  width: 36px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  background: none;
+  flex-shrink: 0;
+}
+
+.cat-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,.08);
+}
+
+.cat-row .cat-label-input {
+  flex: 1;
+  min-width: 0;
+}
+
 /* ─── Responsive tweaks ──────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
   :root { --panel-w: 300px; }

@@ -81,6 +81,20 @@ WP.app = (() => {
   // ─── Init ─────────────────────────────────────────────────────────────────────
   async function init() {
     await WP.db.open();
+
+    // Load any persisted category customisations
+    const savedCats = await WP.db.getCategories();
+    if (savedCats) {
+      for (const [key, val] of Object.entries(savedCats)) {
+        if (key === 'event') continue; // event is always system-managed
+        if (!WP.CATEGORIES[key]) {
+          WP.CATEGORIES[key] = val; // new custom category
+        } else {
+          Object.assign(WP.CATEGORIES[key], val); // update existing
+        }
+      }
+    }
+
     state.template = await WP.db.getTemplate();
     state.weekKey  = WP.getWeekKey(new Date());
     state.monthKey = WP.getMonthKey(new Date());
@@ -1129,11 +1143,120 @@ WP.app = (() => {
     }
   }
 
+  // ─── Category Editor ──────────────────────────────────────────────────────────
+  function openCategoryEditor() {
+    function buildModalHtml() {
+      const cats = Object.entries(WP.CATEGORIES).filter(([k]) => k !== 'event');
+      let rows = cats.map(([key, cat]) => {
+        const isDefault = WP.DEFAULT_CATEGORY_KEYS.has(key);
+        return `
+          <div class="cat-row" data-cat-key="${key}">
+            <input type="color" class="cat-color-input" value="${cat.color}" title="Farbe wählen">
+            <span class="cat-swatch" style="background:${cat.color}; color:${cat.textColor}">Aa</span>
+            <input type="text" class="cat-label-input panel-input" value="${WP.escHtml(cat.label)}" placeholder="Kategoriename">
+            <button class="btn btn--ghost btn--small cat-delete-btn"
+                    ${isDefault ? 'disabled title="Standardkategorie"' : 'title="Kategorie löschen"'}>✕</button>
+          </div>`;
+      }).join('');
+
+      return `
+        <h2 class="modal-title">Kategorien bearbeiten</h2>
+        <p class="modal-text">Farbe und Name anpassen. Neue Kategorien können in jedem Block ausgewählt werden.</p>
+        <div class="cat-editor-list">${rows}</div>
+        <div class="modal-actions" style="margin-top:12px; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+          <button class="btn" id="cat-add-btn">+ Neue Kategorie</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn--primary" id="cat-save-btn">Speichern</button>
+            <button class="btn btn--ghost" id="cat-cancel-btn">Abbrechen</button>
+          </div>
+        </div>`;
+    }
+
+    showModal(buildModalHtml());
+    const overlay = document.getElementById('modal-overlay');
+
+    // Live color preview
+    overlay.addEventListener('input', (e) => {
+      const row = e.target.closest('.cat-row');
+      if (!row) return;
+      if (e.target.classList.contains('cat-color-input')) {
+        const color = e.target.value;
+        const swatch = row.querySelector('.cat-swatch');
+        swatch.style.background  = color;
+        swatch.style.color = WP.autoTextColor(color);
+      }
+    });
+
+    // Add new category
+    overlay.addEventListener('click', (e) => {
+      if (e.target.id === 'cat-add-btn') {
+        const list = overlay.querySelector('.cat-editor-list');
+        const newKey = 'custom-' + Date.now().toString(36);
+        const defaultColor = '#b0a090';
+        const div = document.createElement('div');
+        div.className = 'cat-row';
+        div.dataset.catKey = newKey;
+        div.dataset.isNew  = 'true';
+        div.innerHTML = `
+          <input type="color" class="cat-color-input" value="${defaultColor}">
+          <span class="cat-swatch" style="background:${defaultColor}; color:${WP.autoTextColor(defaultColor)}">Aa</span>
+          <input type="text" class="cat-label-input panel-input" value="" placeholder="Kategoriename">
+          <button class="btn btn--ghost btn--small cat-delete-btn" title="Entfernen">✕</button>`;
+        list.appendChild(div);
+      }
+
+      // Delete row
+      if (e.target.classList.contains('cat-delete-btn') && !e.target.disabled) {
+        e.target.closest('.cat-row').remove();
+      }
+
+      // Cancel
+      if (e.target.id === 'cat-cancel-btn') closeModal();
+
+      // Save
+      if (e.target.id === 'cat-save-btn') {
+        const rows = overlay.querySelectorAll('.cat-row');
+        const updated = {};
+        let valid = true;
+        rows.forEach(row => {
+          const key   = row.dataset.catKey;
+          const color = row.querySelector('.cat-color-input').value;
+          const label = row.querySelector('.cat-label-input').value.trim();
+          if (!label) { valid = false; row.querySelector('.cat-label-input').style.borderColor = 'red'; return; }
+          updated[key] = { label, color, textColor: WP.autoTextColor(color) };
+        });
+        if (!valid) { showToast('Alle Kategorien brauchen einen Namen.', 'warning'); return; }
+
+        // Preserve event category
+        updated.event = WP.CATEGORIES.event;
+
+        // Apply to live WP.CATEGORIES
+        // Remove custom keys no longer present
+        Object.keys(WP.CATEGORIES).forEach(k => {
+          if (k !== 'event' && !updated[k]) delete WP.CATEGORIES[k];
+        });
+        // Apply all updates
+        Object.entries(updated).forEach(([k, v]) => {
+          WP.CATEGORIES[k] = v;
+        });
+
+        WP.db.saveCategories(updated).catch(() => {});
+        closeModal();
+        renderGrid(); // rebuild block colors + category dropdowns
+        if (state.openBlockId) openPanel(state.openBlockId);
+        showToast('Kategorien gespeichert', 'success');
+      }
+    });
+  }
+
   // ─── Global event bindings ────────────────────────────────────────────────────
   function bindGlobalEvents() {
     // Week navigation
     document.getElementById('btn-prev-week').addEventListener('click', () => navigateWeek('prev'));
     document.getElementById('btn-next-week').addEventListener('click', () => navigateWeek('next'));
+
+    // Category editor
+    document.getElementById('btn-categories').addEventListener('click', openCategoryEditor);
 
     // Template mode
     document.getElementById('btn-template').addEventListener('click', toggleTemplateMode);
