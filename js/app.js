@@ -880,9 +880,50 @@ WP.app = (() => {
 
   function onDragMove(e) {
     if (!state.dragState?.active) return;
-    const { ghost } = state.dragState;
+    const { ghost, offsetY, blockId } = state.dragState;
+
+    // Move ghost alongside cursor
     ghost.style.left = (e.clientX - 20) + 'px';
-    ghost.style.top  = (e.clientY - state.dragState.offsetY) + 'px';
+    ghost.style.top  = (e.clientY - offsetY) + 'px';
+
+    // Drop preview: find column underneath (hide ghost so elementFromPoint sees through it)
+    ghost.style.visibility = 'hidden';
+    const elUnder = document.elementFromPoint(e.clientX, e.clientY);
+    ghost.style.visibility = '';
+    const dropCol = elUnder ? elUnder.closest('.day-col') : null;
+    _updateDropPreview(dropCol, e.clientY, offsetY, blockId);
+  }
+
+  function _updateDropPreview(dropCol, clientY, offsetY, blockId) {
+    // Remove any existing preview
+    document.querySelectorAll('.drop-preview').forEach(p => p.remove());
+    if (!dropCol) return;
+
+    const block = _findBlock(blockId);
+    if (!block) return;
+
+    const colRect    = dropCol.getBoundingClientRect();
+    const relY       = clientY - colRect.top - offsetY;
+    const rawMin     = WP.CALENDAR_START + relY;
+    const snapped    = WP.snapTo15(rawMin);
+    const clamped    = Math.max(WP.CALENDAR_START, Math.min(snapped, WP.CALENDAR_END - block.duration));
+    const top        = clamped - WP.CALENDAR_START;
+    const cat        = WP.CATEGORIES[block.category] || WP.CATEGORIES.buffer;
+    const timeLabel  = WP.minutesToTime(clamped);
+    const hasConflict = hasOverlap(_blocks(), parseInt(dropCol.dataset.day, 10),
+                                   WP.minutesToTime(clamped), block.duration, blockId);
+
+    const preview = document.createElement('div');
+    preview.className = 'drop-preview' + (hasConflict ? ' drop-preview--conflict' : '');
+    preview.style.cssText = `top:${top}px; height:${block.duration}px;`;
+    if (!hasConflict) preview.style.borderColor = cat.color;
+    preview.innerHTML = `<span class="drop-preview-time">${timeLabel}</span>`;
+    dropCol.appendChild(preview);
+
+    // Store snapped target in drag state for onDragEnd to reuse
+    state.dragState.previewDay   = parseInt(dropCol.dataset.day, 10);
+    state.dragState.previewStart = WP.minutesToTime(clamped);
+    state.dragState.previewConflict = hasConflict;
   }
 
   async function onDragEnd(e) {
@@ -890,28 +931,26 @@ WP.app = (() => {
     document.removeEventListener('mousemove', onDragMove);
     document.removeEventListener('mouseup',   onDragEnd);
 
-    const { blockId, origDay, origStartTime, offsetY, ghost, blockEl } = state.dragState;
+    // Remove drop preview
+    document.querySelectorAll('.drop-preview').forEach(p => p.remove());
+
+    const { blockId, origDay, origStartTime, ghost, blockEl,
+            previewDay, previewStart, previewConflict } = state.dragState;
     state.dragState = null;
 
     ghost.remove();
     blockEl.style.opacity = '';
 
-    // Find which day column the mouse is over
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const dropCol = el ? el.closest('.day-col') : null;
+    // Use the already-computed snapped target from the preview
+    if (previewDay === undefined || previewConflict) {
+      if (previewConflict) showToast('Dieser Zeitraum ist bereits belegt', 'warning');
+      return;
+    }
 
-    if (!dropCol) return; // dropped outside — revert
-
-    const newDay   = parseInt(dropCol.dataset.day, 10);
-    const colRect  = dropCol.getBoundingClientRect();
-    const relY     = e.clientY - colRect.top - offsetY; // getBoundingClientRect accounts for scroll
-    const rawMin   = WP.CALENDAR_START + relY;
-    const snapped  = WP.snapTo15(rawMin);
-    const block    = _findBlock(blockId);
+    const newDay       = previewDay;
+    const newStartTime = previewStart;
+    const block        = _findBlock(blockId);
     if (!block) return;
-
-    const clampedStart = Math.max(WP.CALENDAR_START, Math.min(snapped, WP.CALENDAR_END - block.duration));
-    const newStartTime = WP.minutesToTime(clampedStart);
 
     if (newDay === origDay && newStartTime === origStartTime) return; // no change
 
@@ -1139,6 +1178,103 @@ WP.app = (() => {
     document.getElementById('panel-delete-btn').addEventListener('click', () => {
       if (state.openBlockId) deleteBlock(state.openBlockId);
     });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', async (e) => {
+      // Skip when user is typing in an input/textarea/contenteditable
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (document.activeElement?.isContentEditable) return;
+      // Skip when a modal is open
+      if (document.getElementById('modal-overlay').classList.contains('modal--open')) return;
+
+      const blockId = state.openBlockId;
+
+      // Escape: close panel
+      if (e.key === 'Escape') {
+        if (blockId) { closePanel(); return; }
+      }
+
+      if (!blockId) return;
+      const block = _findBlock(blockId);
+      if (!block) return;
+
+      const startMin = WP.timeToMinutes(block.startTime);
+      const isCtrl   = e.ctrlKey || e.metaKey;
+
+      // ↑ / ↓ — move block by 15min
+      if (e.key === 'ArrowUp' && !isCtrl) {
+        e.preventDefault();
+        const newStart = Math.max(WP.CALENDAR_START, startMin - 15);
+        const newTime  = WP.minutesToTime(newStart);
+        if (newTime !== block.startTime && !hasOverlap(_blocks(), block.day, newTime, block.duration, blockId)) {
+          block.startTime = newTime;
+          await saveCurrentWeek();
+          refreshBlockDisplay(blockId);
+          _syncPanelField('startTime', newTime);
+        }
+        return;
+      }
+
+      if (e.key === 'ArrowDown' && !isCtrl) {
+        e.preventDefault();
+        const newStart = Math.min(WP.CALENDAR_END - block.duration, startMin + 15);
+        const newTime  = WP.minutesToTime(newStart);
+        if (newTime !== block.startTime && !hasOverlap(_blocks(), block.day, newTime, block.duration, blockId)) {
+          block.startTime = newTime;
+          await saveCurrentWeek();
+          refreshBlockDisplay(blockId);
+          _syncPanelField('startTime', newTime);
+        }
+        return;
+      }
+
+      // Ctrl+↑ / Ctrl+↓ — shrink/grow duration by 15min
+      if (e.key === 'ArrowUp' && isCtrl) {
+        e.preventDefault();
+        const newDur = Math.max(15, block.duration - 15);
+        if (newDur !== block.duration) {
+          block.duration = newDur;
+          await saveCurrentWeek();
+          refreshBlockDisplay(blockId);
+          _syncPanelField('duration', newDur);
+        }
+        return;
+      }
+
+      if (e.key === 'ArrowDown' && isCtrl) {
+        e.preventDefault();
+        const maxDur  = WP.CALENDAR_END - startMin;
+        const newDur  = Math.min(maxDur, block.duration + 15);
+        if (newDur !== block.duration && !hasOverlap(_blocks(), block.day, block.startTime, newDur, blockId)) {
+          block.duration = newDur;
+          await saveCurrentWeek();
+          refreshBlockDisplay(blockId);
+          _syncPanelField('duration', newDur);
+        }
+        return;
+      }
+
+      // Ctrl+D — duplicate
+      if ((e.key === 'd' || e.key === 'D') && isCtrl) {
+        e.preventDefault();
+        await duplicateBlock(blockId);
+        return;
+      }
+
+      // Delete — delete block
+      if (e.key === 'Delete') {
+        e.preventDefault();
+        await deleteBlock(blockId);
+        return;
+      }
+    });
+  }
+
+  // Sync a single select/input in the open panel without re-rendering it
+  function _syncPanelField(field, value) {
+    const el = document.querySelector(`.panel-body [data-field="${field}"]`);
+    if (el) el.value = value;
   }
 
   // ─── Utility: debounce ────────────────────────────────────────────────────────
