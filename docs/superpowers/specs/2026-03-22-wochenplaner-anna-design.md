@@ -90,35 +90,61 @@ checklistTemplate: {
 template: {
   blocks: [
     // day: 0 = Montag, duration in Minuten
+    // MONTAG — 8h Arbeit (inkl. Akquise-Gruppe als Arbeitszeit)
     { day: 0, startTime: "09:00", duration: 30,  category: "event",    title: "Akquise-Gruppe" },
     { day: 0, startTime: "09:30", duration: 150, category: "complex",  title: "Komplexe Illustration" },
     { day: 0, startTime: "12:00", duration: 60,  category: "event",    title: "Mittagspause" },
-    { day: 0, startTime: "13:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
-    { day: 0, startTime: "14:00", duration: 60,  category: "buffer",   title: "Puffer" },
+    { day: 0, startTime: "13:00", duration: 180, category: "moderate", title: "Moderate Illustration" },
+    { day: 0, startTime: "16:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
+    { day: 0, startTime: "17:00", duration: 60,  category: "buffer",   title: "Puffer" },
+    // Arbeit: 0.5h + 2.5h + 3h + 1h + 1h = 8h ✓
 
-    { day: 1, startTime: "09:00", duration: 180, category: "moderate", title: "Moderate Illustration" },
+    // DIENSTAG — 8h Arbeit
+    { day: 1, startTime: "09:00", duration: 180, category: "complex",  title: "Komplexe Illustration" },
     { day: 1, startTime: "12:00", duration: 60,  category: "event",    title: "Mittagspause" },
-    { day: 1, startTime: "13:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
-    { day: 1, startTime: "14:00", duration: 60,  category: "buffer",   title: "Puffer" },
+    { day: 1, startTime: "13:00", duration: 180, category: "moderate", title: "Moderate Illustration" },
+    { day: 1, startTime: "16:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
+    { day: 1, startTime: "17:00", duration: 60,  category: "buffer",   title: "Puffer" },
+    // Arbeit: 3h + 3h + 1h + 1h = 8h ✓
 
+    // MITTWOCH — 8h Arbeit
     { day: 2, startTime: "09:00", duration: 180, category: "complex",  title: "Komplexe Illustration" },
     { day: 2, startTime: "12:00", duration: 60,  category: "event",    title: "Mittagspause" },
-    { day: 2, startTime: "13:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
-    { day: 2, startTime: "14:00", duration: 60,  category: "buffer",   title: "Puffer" },
+    { day: 2, startTime: "13:00", duration: 180, category: "moderate", title: "Moderate Illustration" },
+    { day: 2, startTime: "16:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
+    { day: 2, startTime: "17:00", duration: 60,  category: "buffer",   title: "Puffer" },
+    // Arbeit: 3h + 3h + 1h + 1h = 8h ✓
 
+    // DONNERSTAG — 8h Arbeit
     { day: 3, startTime: "09:00", duration: 180, category: "moderate", title: "Moderate Illustration" },
     { day: 3, startTime: "12:00", duration: 60,  category: "event",    title: "Mittagspause" },
-    { day: 3, startTime: "13:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
-    { day: 3, startTime: "14:00", duration: 60,  category: "buffer",   title: "Puffer" },
+    { day: 3, startTime: "13:00", duration: 120, category: "complex",  title: "Komplexe Illustration" },
+    { day: 3, startTime: "15:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
+    { day: 3, startTime: "16:00", duration: 90,  category: "orga",     title: "Orga & Verwaltung" },
+    { day: 3, startTime: "17:30", duration: 30,  category: "buffer",   title: "Puffer" },
+    // Arbeit: 3h + 2h + 1h + 1.5h + 0.5h = 8h ✓
 
+    // FREITAG — 8h Arbeit
     { day: 4, startTime: "09:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
     { day: 4, startTime: "10:00", duration: 120, category: "orga",     title: "Orga & Verwaltung" },
     { day: 4, startTime: "12:00", duration: 60,  category: "event",    title: "Mittagspause" },
-    { day: 4, startTime: "13:00", duration: 120, category: "buffer",   title: "Puffer / Abschluss" },
+    { day: 4, startTime: "13:00", duration: 180, category: "moderate", title: "Moderate Illustration" },
+    { day: 4, startTime: "16:00", duration: 120, category: "buffer",   title: "Puffer / Wochenabschluss" },
+    // Arbeit: 1h + 2h + 3h + 2h = 8h ✓
 
-    { day: 5, startTime: "10:00", duration: 120, category: "moderate", title: "Moderate Illustration (optional)" },
+    // SAMSTAG — 4h Arbeit
+    { day: 5, startTime: "10:00", duration: 120, category: "moderate", title: "Moderate Illustration" },
     { day: 5, startTime: "12:00", duration: 60,  category: "event",    title: "Mittagspause" },
-    // day: 6 (Sonntag) — leer, freier Tag
+    { day: 5, startTime: "13:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
+    { day: 5, startTime: "14:00", duration: 60,  category: "buffer",   title: "Puffer" },
+    // Arbeit: 2h + 1h + 1h = 4h ✓
+
+    // SONNTAG — 4h Arbeit
+    { day: 6, startTime: "10:00", duration: 120, category: "moderate", title: "Moderate Illustration" },
+    { day: 6, startTime: "12:00", duration: 60,  category: "event",    title: "Mittagspause" },
+    { day: 6, startTime: "13:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
+    { day: 6, startTime: "14:00", duration: 60,  category: "buffer",   title: "Puffer" },
+    // Arbeit: 2h + 1h + 1h = 4h ✓
   ],
   checklistTemplates: {
     "deliver-illustration": {
@@ -205,13 +231,12 @@ Das Template ist ein **Startvorschlag** (nicht alle 8h pro Tag belegt — bewuss
 
 | Kategorie | Stunden/Woche |
 |---|---|
-| Komplexe Illustration | ~5h (Mo 2,5h + Mi 3h) |
-| Moderate Illustration | ~8h (Di 3h + Do 3h + Sa 2h) |
-| Schnellzeichnung | ~4h (4× 1h) |
-| Orga & Verwaltung | ~2h (Fr 2h) |
-| Flexibler Puffer | ~4h (verteilt) |
-| Mittagspause | 6h (Mo–Sa je 1h, kein Arbeitsblock) |
-| **Gesamt Arbeit** | **~23h** |
+| Komplexe Illustration | 10,5h (Mo 2,5h + Di 3h + Mi 3h + Do 2h) |
+| Moderate Illustration | 17h (Mo 3h + Mi 3h + Di 3h + Do 3h + Fr 3h + Sa 2h + So 2h) |
+| Schnellzeichnung | 7h (Mo–Fr je 1h + Sa 1h + So 1h) |
+| Orga & Verwaltung | 3,5h (Do 1,5h + Fr 2h) |
+| Flexibler Puffer | 6,5h (verteilt) |
+| **Gesamt Arbeit** | **44h** (8h × 5 Werktage + 4h Sa + 4h So) |
 
 ---
 
