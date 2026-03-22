@@ -20,6 +20,18 @@ WP.CALENDAR_HEIGHT = WP.CALENDAR_END - WP.CALENDAR_START; // 720px (1px/min)
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 WP.generateId = () => 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
+// Auto-compute readable text color from a background hex color
+WP.autoTextColor = (hex) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.55 ? '#4a3728' : '#ffffff';
+};
+
+// The 6 built-in category keys — cannot be deleted
+WP.DEFAULT_CATEGORY_KEYS = new Set(['complex', 'moderate', 'quick', 'orga', 'buffer', 'event']);
+
 WP.snapTo15 = (min) => Math.round(min / 15) * 15;
 
 WP.timeToMinutes = (s) => {

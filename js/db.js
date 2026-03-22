@@ -71,6 +71,15 @@ WP.db = (() => {
     await _db.put('meta', val, key);
   }
 
+  // Categories: stored as object {key: {label, color, textColor}}
+  async function getCategories() {
+    return _db.get('meta', 'categories') || null;
+  }
+
+  async function saveCategories(cats) {
+    await _db.put('meta', cats, 'categories');
+  }
+
   // Export ALL data from all stores as one JSON object
   async function exportAll() {
     const template = await _db.get('template', 'current');
@@ -137,5 +146,5 @@ WP.db = (() => {
     }
   }
 
-  return { open, getTemplate, saveTemplate, getWeek, saveWeek, getGoal, saveGoal, getMeta, setMeta, exportAll, importAll };
+  return { open, getTemplate, saveTemplate, getWeek, saveWeek, getGoal, saveGoal, getMeta, setMeta, getCategories, saveCategories, exportAll, importAll };
 })();
