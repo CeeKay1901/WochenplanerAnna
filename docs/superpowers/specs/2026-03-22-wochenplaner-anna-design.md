@@ -91,28 +91,33 @@ template: {
   blocks: [
     // day: 0 = Montag, duration in Minuten
     { day: 0, startTime: "09:00", duration: 30,  category: "event",    title: "Akquise-Gruppe" },
-    { day: 0, startTime: "09:30", duration: 210, category: "complex",  title: "Komplexe Illustration" },
-    { day: 0, startTime: "13:30", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
-    { day: 0, startTime: "14:30", duration: 60,  category: "buffer",   title: "Puffer" },
+    { day: 0, startTime: "09:30", duration: 150, category: "complex",  title: "Komplexe Illustration" },
+    { day: 0, startTime: "12:00", duration: 60,  category: "event",    title: "Mittagspause" },
+    { day: 0, startTime: "13:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
+    { day: 0, startTime: "14:00", duration: 60,  category: "buffer",   title: "Puffer" },
 
     { day: 1, startTime: "09:00", duration: 180, category: "moderate", title: "Moderate Illustration" },
+    { day: 1, startTime: "12:00", duration: 60,  category: "event",    title: "Mittagspause" },
     { day: 1, startTime: "13:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
     { day: 1, startTime: "14:00", duration: 60,  category: "buffer",   title: "Puffer" },
 
-    { day: 2, startTime: "09:00", duration: 240, category: "complex",  title: "Komplexe Illustration" },
+    { day: 2, startTime: "09:00", duration: 180, category: "complex",  title: "Komplexe Illustration" },
+    { day: 2, startTime: "12:00", duration: 60,  category: "event",    title: "Mittagspause" },
     { day: 2, startTime: "13:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
     { day: 2, startTime: "14:00", duration: 60,  category: "buffer",   title: "Puffer" },
 
     { day: 3, startTime: "09:00", duration: 180, category: "moderate", title: "Moderate Illustration" },
+    { day: 3, startTime: "12:00", duration: 60,  category: "event",    title: "Mittagspause" },
     { day: 3, startTime: "13:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
     { day: 3, startTime: "14:00", duration: 60,  category: "buffer",   title: "Puffer" },
 
     { day: 4, startTime: "09:00", duration: 60,  category: "quick",    title: "Schnellzeichnung" },
     { day: 4, startTime: "10:00", duration: 120, category: "orga",     title: "Orga & Verwaltung" },
-    { day: 4, startTime: "12:00", duration: 120, category: "buffer",   title: "Puffer / Abschluss" },
+    { day: 4, startTime: "12:00", duration: 60,  category: "event",    title: "Mittagspause" },
+    { day: 4, startTime: "13:00", duration: 120, category: "buffer",   title: "Puffer / Abschluss" },
 
     { day: 5, startTime: "10:00", duration: 120, category: "moderate", title: "Moderate Illustration (optional)" },
-    { day: 5, startTime: "12:00", duration: 60,  category: "buffer",   title: "Puffer (optional)" },
+    { day: 5, startTime: "12:00", duration: 60,  category: "event",    title: "Mittagspause" },
     // day: 6 (Sonntag) — leer, freier Tag
   ],
   checklistTemplates: {
@@ -200,12 +205,13 @@ Das Template ist ein **Startvorschlag** (nicht alle 8h pro Tag belegt — bewuss
 
 | Kategorie | Stunden/Woche |
 |---|---|
-| Komplexe Illustration | ~7,5h (Mo 3,5h + Mi 4h) |
+| Komplexe Illustration | ~5h (Mo 2,5h + Mi 3h) |
 | Moderate Illustration | ~8h (Di 3h + Do 3h + Sa 2h) |
 | Schnellzeichnung | ~4h (4× 1h) |
 | Orga & Verwaltung | ~2h (Fr 2h) |
-| Flexibler Puffer | ~5h (verteilt) |
-| **Gesamt** | **~26,5h** |
+| Flexibler Puffer | ~4h (verteilt) |
+| Mittagspause | 6h (Mo–Sa je 1h, kein Arbeitsblock) |
+| **Gesamt Arbeit** | **~23h** |
 
 ---
 
