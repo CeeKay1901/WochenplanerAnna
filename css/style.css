@@ -98,6 +98,9 @@ html, body {
   text-align: center;
 }
 
+#header-week-num.week-num--clickable { cursor: pointer; }
+#header-week-num.week-num--clickable:hover { text-decoration: underline; }
+
 #header-day-counter {
   font-size: 12px;
   color: var(--text-sec);
@@ -378,6 +381,26 @@ html, body {
   background-size: 100% 60px;
 }
 
+/* Hover-Hint: "+" in leeren Spalten-Bereichen zeigt Doppelklick-Aktion an */
+.day-col::after {
+  content: '+';
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--text-sec);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  line-height: 1;
+  z-index: 0;
+}
+
+.day-col:hover::after {
+  opacity: 0.35;
+}
+
 /* ─── Blocks ─────────────────────────────────────────────────────────────────── */
 .block {
   position: absolute;
@@ -471,6 +494,31 @@ html, body {
 .block--overtime { animation: pulse-overtime 1s ease-in-out infinite; }
 .block--done     { opacity: 0.65; }
 .block--paused   { opacity: 0.8; }
+
+/* ─── Quick Timer Button (pause/resume directly on block) ───────────────────── */
+.block-quick-timer {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.2);
+  color: inherit;
+  font-size: 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.1s;
+}
+.block:hover .block-quick-timer { opacity: 1; }
+.block-quick-timer:hover { background: rgba(0, 0, 0, 0.38); }
 
 /* ─── Detail Panel ──────────────────────────────────────────────────────────── */
 #detail-panel {
@@ -817,6 +865,14 @@ html, body {
   background: var(--border);
   margin: 4px 0;
 }
+
+/* ─── Day View ────────────────────────────────────────────────────────────────── */
+.day-view-header { grid-template-columns: 60px 1fr; }
+.day-view-body   { grid-template-columns: 60px 1fr; }
+
+/* Day header title area is clickable in week view */
+.day-header .day-name-date { cursor: pointer; }
+.day-header .day-name-date:hover .day-name { text-decoration: underline; text-decoration-style: dotted; }
 
 /* ─── Scrollbar styling ─────────────────────────────────────────────────────── */
 .calendar-body-scroll::-webkit-scrollbar { width: 6px; }

@@ -38,6 +38,26 @@ WP.app = (() => {
     }
   }
 
+  // Auto-reset: Blöcke vergangener Tage mit aktivem Timer-State auf 'done' setzen
+  function _resetStaleTimerStates(weekData, weekKey) {
+    if (!weekData?.blocks) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let count = 0;
+    for (const block of weekData.blocks) {
+      if (block.category === 'event') continue;
+      if (block.timerState === 'idle' || block.timerState === 'done') continue;
+      const blockDate = WP.getDayDate(weekKey, block.day);
+      blockDate.setHours(0, 0, 0, 0);
+      if (blockDate < today) {
+        block.timerState     = 'done';
+        block.timerStartedAt = null;
+        count++;
+      }
+    }
+    return count;
+  }
+
   function hasOverlap(blocks, day, startTime, duration, excludeId = null) {
     const startMin = WP.timeToMinutes(startTime);
     const endMin   = startMin + duration;
@@ -190,6 +210,9 @@ WP.app = (() => {
     }
     state.weekData = weekData;
     state.weekKey  = weekKey;
+    // Stale Timer-States vergangener Tage zurücksetzen
+    const _staleCount = _resetStaleTimerStates(weekData, weekKey);
+    if (_staleCount > 0) await WP.db.saveWeek(weekKey, weekData);
     // Update month key when navigating
     const monday = WP.getWeekMonday(weekKey);
     state.monthKey = WP.getMonthKey(monday);
@@ -266,12 +289,18 @@ WP.app = (() => {
     return {
       goal: '',
       dayGoals: {},
-      blocks: prevWeek.blocks.map(b => ({
-        ...WP.templateBlockToWeekBlock(b),
-        timerState: 'idle',
-        timerElapsed: 0,
-        timerStartedAt: null,
-      })),
+      blocks: prevWeek.blocks.map(b => {
+        const newBlock = {
+          ...WP.templateBlockToWeekBlock(b),
+          timerState:    'idle',
+          timerElapsed:  0,
+          timerStartedAt: null,
+        };
+        // Nur Struktur übernehmen — Inhalte (done/checked-Status) zurücksetzen
+        newBlock.tasks     = (newBlock.tasks     || []).map(t => ({ ...t, done:    false }));
+        newBlock.checklist = (newBlock.checklist || []).map(c => ({ ...c, checked: false }));
+        return newBlock;
+      }),
     };
   }
 
@@ -303,9 +332,16 @@ WP.app = (() => {
     const [, weekNum] = state.weekKey.split('-W');
     const isTemplate  = state.isTemplateMode;
 
-    document.getElementById('header-week-num').textContent = isTemplate
-      ? 'Template-Modus'
-      : `KW ${weekNum}`;
+    const weekNumEl = document.getElementById('header-week-num');
+    if (!isTemplate && state.view === 'day') {
+      weekNumEl.textContent = WP.DAY_NAMES_LONG[state.dayIndex];
+      weekNumEl.title = 'Klick: zurück zur Wochenansicht';
+      weekNumEl.classList.add('week-num--clickable');
+    } else {
+      weekNumEl.textContent = isTemplate ? 'Template-Modus' : `KW ${weekNum}`;
+      weekNumEl.title = isTemplate ? '' : 'Klick: zur aktuellen Woche';
+      weekNumEl.classList.toggle('week-num--clickable', !isTemplate);
+    }
 
     const monthGoalEl = document.getElementById('month-goal');
     if (monthGoalEl) {
@@ -326,9 +362,13 @@ WP.app = (() => {
   }
 
   function renderGrid() {
-    const container  = document.getElementById('calendar-container');
-    const data       = state.isTemplateMode ? { blocks: state.template.blocks, dayGoals: {} } : state.weekData;
-    container.innerHTML = WP.render.weekGrid(data, state.weekKey, state.isTemplateMode);
+    const container = document.getElementById('calendar-container');
+    const data      = state.isTemplateMode ? { blocks: state.template.blocks, dayGoals: {} } : state.weekData;
+    if (!state.isTemplateMode && state.view === 'day') {
+      container.innerHTML = WP.render.dayGrid(data, state.weekKey, state.dayIndex);
+    } else {
+      container.innerHTML = WP.render.weekGrid(data, state.weekKey, state.isTemplateMode);
+    }
     bindCalendarEvents();
     updateHeaderCounter();
   }
@@ -393,6 +433,19 @@ WP.app = (() => {
     // Bind individual block events
     document.querySelectorAll('.block').forEach(el => bindBlockEvents(el));
 
+    // Day header click → switch to day view (week view only)
+    if (!state.isTemplateMode && state.view === 'week') {
+      document.querySelectorAll('.day-header').forEach(el => {
+        el.addEventListener('click', (e) => {
+          if (e.target.closest('.day-goal')) return; // don't intercept goal edits
+          state.view = 'day';
+          state.dayIndex = parseInt(el.dataset.day, 10);
+          renderGrid();
+          renderHeader();
+        });
+      });
+    }
+
     // Day goal inputs
     document.querySelectorAll('.day-goal').forEach(el => {
       el.addEventListener('input', debounce(async () => {
@@ -406,6 +459,21 @@ WP.app = (() => {
   }
 
   function bindBlockEvents(el) {
+    // Quick timer button (pause/resume without opening panel)
+    const quickBtn = el.querySelector('[data-quick-action]');
+    if (quickBtn) {
+      quickBtn.addEventListener('mousedown', (e) => e.stopPropagation()); // prevent drag
+      quickBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const blockId = el.dataset.blockId;
+        if (e.currentTarget.dataset.quickAction === 'pause') {
+          await WP.timer.pause(blockId);
+        } else {
+          await WP.timer.resume(blockId);
+        }
+      });
+    }
+
     // Left-click → open panel
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -522,11 +590,11 @@ WP.app = (() => {
     bodyEl.querySelectorAll('[data-action]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const action = btn.dataset.action;
-        if (action === 'timer-start')  { await WP.timer.start(block.id);   refreshPanelTimer(block); }
-        if (action === 'timer-pause')  { await WP.timer.pause(block.id);   refreshPanelTimer(block); }
-        if (action === 'timer-resume') { await WP.timer.resume(block.id);  refreshPanelTimer(block); }
-        if (action === 'timer-reset')  { await WP.timer.reset(block.id);   refreshPanelTimer(block); }
-        if (action === 'timer-done')   { await WP.timer.markDone(block.id); refreshPanelTimer(block); }
+        if (action === 'timer-start')  { await WP.timer.start(block.id);    refreshPanelTimer(block); }
+        if (action === 'timer-pause')  { await WP.timer.pause(block.id);    refreshPanelTimer(block); }
+        if (action === 'timer-resume') { await WP.timer.resume(block.id);   refreshPanelTimer(block); }
+        if (action === 'timer-reset')  { await WP.timer.reset(block.id);    refreshPanelTimer(block); }
+        if (action === 'timer-done')   { await WP.timer.markDone(block.id); refreshPanelTimer(block); setTimeout(() => closePanel(), 400); }
       });
     });
   }
@@ -568,11 +636,11 @@ WP.app = (() => {
     timerSection.querySelectorAll('[data-action]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const action = btn.dataset.action;
-        if (action === 'timer-start')  { await WP.timer.start(fresh.id);   refreshPanelTimer(fresh); }
-        if (action === 'timer-pause')  { await WP.timer.pause(fresh.id);   refreshPanelTimer(fresh); }
-        if (action === 'timer-resume') { await WP.timer.resume(fresh.id);  refreshPanelTimer(fresh); }
-        if (action === 'timer-reset')  { await WP.timer.reset(fresh.id);   refreshPanelTimer(fresh); }
-        if (action === 'timer-done')   { await WP.timer.markDone(fresh.id); refreshPanelTimer(fresh); }
+        if (action === 'timer-start')  { await WP.timer.start(fresh.id);    refreshPanelTimer(fresh); }
+        if (action === 'timer-pause')  { await WP.timer.pause(fresh.id);    refreshPanelTimer(fresh); }
+        if (action === 'timer-resume') { await WP.timer.resume(fresh.id);   refreshPanelTimer(fresh); }
+        if (action === 'timer-reset')  { await WP.timer.reset(fresh.id);    refreshPanelTimer(fresh); }
+        if (action === 'timer-done')   { await WP.timer.markDone(fresh.id); refreshPanelTimer(fresh); setTimeout(() => closePanel(), 400); }
       });
     });
   }
@@ -723,6 +791,7 @@ WP.app = (() => {
           if (tBlock) {
             tBlock[field] = value;
             await WP.db.saveTemplate(state.template);
+            showToast('Template aktualisiert ✓', 'success');
           }
         }
 
@@ -850,6 +919,7 @@ WP.app = (() => {
     menu.innerHTML = `
       <button class="ctx-item" data-ctx="open">Block öffnen</button>
       <button class="ctx-item" data-ctx="duplicate">Duplizieren</button>
+      ${!state.isTemplateMode ? `<button class="ctx-item" data-ctx="copy-next-week">In nächste Woche</button>` : ''}
       <div class="ctx-divider"></div>
       <button class="ctx-item ctx-item--danger" data-ctx="delete">Löschen …</button>
     `;
@@ -886,9 +956,10 @@ WP.app = (() => {
       const freshBlock = _findBlock(blockId);
       if (!freshBlock) return;
 
-      if (action === 'open')      { openPanel(blockId); }
-      if (action === 'duplicate') { await duplicateBlock(blockId); }
-      if (action === 'delete')    { await deleteBlock(blockId); }
+      if (action === 'open')           { openPanel(blockId); }
+      if (action === 'duplicate')      { await duplicateBlock(blockId); }
+      if (action === 'copy-next-week') { await copyBlockToNextWeek(blockId); }
+      if (action === 'delete')         { await deleteBlock(blockId); }
       if (action === 'checklist') {
         const clKey = btn.dataset.clKey;
         const tmpl  = clTemplates[clKey];
@@ -938,6 +1009,30 @@ WP.app = (() => {
     }
     renderGrid();
     showToast('Block dupliziert', 'success');
+  }
+
+  // ─── Copy block to next week ─────────────────────────────────────────────────
+  async function copyBlockToNextWeek(blockId) {
+    if (state.isTemplateMode) return;
+    const block = _findBlock(blockId);
+    if (!block) return;
+    const nextKey = WP.nextWeekKey(state.weekKey);
+    let nextWeek = await WP.db.getWeek(nextKey);
+    if (!nextWeek) nextWeek = { goal: '', dayGoals: {}, blocks: [] };
+    const newBlock = {
+      ...JSON.parse(JSON.stringify(block)),
+      id:             WP.generateId(),
+      fromTemplate:   false,
+      timerState:     'idle',
+      timerElapsed:   0,
+      timerStartedAt: null,
+      tasks:          (block.tasks     || []).map(t => ({ ...t, done:    false })),
+      checklist:      (block.checklist || []).map(c => ({ ...c, checked: false })),
+    };
+    nextWeek.blocks.push(newBlock);
+    await WP.db.saveWeek(nextKey, nextWeek);
+    const [, weekNum] = nextKey.split('-W');
+    showToast(`Block in KW ${weekNum} kopiert ✓`, 'success');
   }
 
   // ─── Drag & Drop ──────────────────────────────────────────────────────────────
@@ -1091,6 +1186,7 @@ WP.app = (() => {
               tBlock.day       = newDay;
               tBlock.startTime = newStartTime;
               await WP.db.saveTemplate(state.template);
+              showToast('Template aktualisiert ✓', 'success');
             }
           }
           resolve();
@@ -1109,6 +1205,24 @@ WP.app = (() => {
   // ─── Week navigation ──────────────────────────────────────────────────────────
   async function navigateWeek(direction) {
     if (state.isTemplateMode) return;
+
+    if (state.view === 'day') {
+      const newIdx = direction === 'prev' ? state.dayIndex - 1 : state.dayIndex + 1;
+      if (newIdx < 0) {
+        closePanel();
+        await loadWeek(WP.prevWeekKey(state.weekKey));
+        state.dayIndex = 6;
+      } else if (newIdx > 6) {
+        closePanel();
+        await loadWeek(WP.nextWeekKey(state.weekKey));
+        state.dayIndex = 0;
+      } else {
+        state.dayIndex = newIdx;
+      }
+      renderAll();
+      return;
+    }
+
     closePanel();
     const newKey = direction === 'prev'
       ? WP.prevWeekKey(state.weekKey)
@@ -1119,9 +1233,14 @@ WP.app = (() => {
 
   // ─── Template mode ────────────────────────────────────────────────────────────
   async function toggleTemplateMode() {
+    const wasTemplate = state.isTemplateMode;
     state.isTemplateMode = !state.isTemplateMode;
+    state.view = 'week'; // always return to week view
     closePanel();
     renderAll();
+    if (wasTemplate) {
+      showToast('Template gespeichert — gilt ab neuen Wochen ✓', 'success');
+    }
   }
 
   // ─── Goals ────────────────────────────────────────────────────────────────────
@@ -1333,6 +1452,21 @@ WP.app = (() => {
     // Week navigation
     document.getElementById('btn-prev-week').addEventListener('click', () => navigateWeek('prev'));
     document.getElementById('btn-next-week').addEventListener('click', () => navigateWeek('next'));
+
+    // KW-Badge anklicken → in Day-View: zurück zur Wochenansicht; sonst: zur aktuellen Woche
+    document.getElementById('header-week-num').addEventListener('click', async () => {
+      if (state.isTemplateMode) return;
+      if (state.view === 'day') {
+        state.view = 'week';
+        renderAll();
+        return;
+      }
+      const todayKey = WP.getWeekKey(new Date());
+      if (todayKey === state.weekKey) return;
+      closePanel();
+      await loadWeek(todayKey);
+      renderAll();
+    });
 
     // Category editor
     document.getElementById('btn-categories').addEventListener('click', openCategoryEditor);

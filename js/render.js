@@ -61,11 +61,17 @@ WP.render = {
       countdownHtml = `<div class="block-countdown">${sign}${this.formatSeconds(dispSec)}</div>`;
     }
 
-    // Timer icon overlay (paused / done)
+    // Timer icon overlay (done) or quick-action button (running / paused)
     let iconHtml = '';
+    let quickTimerBtn = '';
     if (!isTemplate && !isEvent) {
-      if (block.timerState === 'paused')   iconHtml = '<div class="block-icon">⏸</div>';
-      else if (block.timerState === 'done') iconHtml = '<div class="block-icon">✓</div>';
+      if (block.timerState === 'running' || block.timerState === 'overtime') {
+        quickTimerBtn = `<button class="block-quick-timer" data-quick-action="pause" title="Pause">⏸</button>`;
+      } else if (block.timerState === 'paused') {
+        quickTimerBtn = `<button class="block-quick-timer" data-quick-action="resume" title="Weiter">▶</button>`;
+      } else if (block.timerState === 'done') {
+        iconHtml = '<div class="block-icon">✓</div>';
+      }
     }
 
     // Task count badge
@@ -89,6 +95,7 @@ WP.render = {
           ${countdownHtml}
           ${iconHtml}
         </div>
+        ${quickTimerBtn}
         <div class="block-progress">
           <div class="block-progress-fill" style="width:${progressPct}%"></div>
         </div>
@@ -132,13 +139,51 @@ WP.render = {
         blockHtml += this.block(b, isTemplate);
       }
 
-      bodyCols += `<div class="day-col" data-day="${d}">${blockHtml}</div>`;
+      bodyCols += `<div class="day-col" data-day="${d}" title="Doppelklick: neuer Block">${blockHtml}</div>`;
     }
 
     return `
       <div class="calendar-header">${headerCols}</div>
       <div class="calendar-body-scroll">
         <div class="calendar-body" id="week-grid">${bodyCols}</div>
+      </div>`;
+  },
+
+  // ─── Single day grid ─────────────────────────────────────────────────────────
+  dayGrid(weekData, weekKey, dayIndex) {
+    const blocks   = (weekData?.blocks || []).filter(b => b.day === dayIndex);
+    const dayGoals = weekData?.dayGoals || {};
+
+    const dayNameLong = WP.DAY_NAMES_LONG[dayIndex];
+    const dateStr  = WP.formatDate(WP.getDayDate(weekKey, dayIndex));
+    const goalText = WP.escHtml(dayGoals[dayIndex] || '');
+    const todayClass = WP.isToday(weekKey, dayIndex) ? ' day-header--today' : '';
+
+    let blockHtml = '';
+    for (let h = 0; h < 12; h++) {
+      blockHtml += `<div class="hour-line" style="top:${h * 60}px"></div>`;
+    }
+    for (const b of blocks) {
+      blockHtml += this.block(b, false);
+    }
+
+    return `
+      <div class="calendar-header day-view-header">
+        <div class="time-corner"></div>
+        <div class="day-header${todayClass}" data-day="${dayIndex}">
+          <div class="day-name-date">
+            <span class="day-name">${dayNameLong}</span>
+            <span class="day-date">${dateStr}</span>
+          </div>
+          <div class="day-goal" contenteditable="true" data-day="${dayIndex}"
+               placeholder="Tagesziel …">${goalText}</div>
+        </div>
+      </div>
+      <div class="calendar-body-scroll">
+        <div class="calendar-body day-view-body" id="week-grid">
+          ${this.timeAxis()}
+          <div class="day-col" data-day="${dayIndex}" title="Doppelklick: neuer Block">${blockHtml}</div>
+        </div>
       </div>`;
   },
 
