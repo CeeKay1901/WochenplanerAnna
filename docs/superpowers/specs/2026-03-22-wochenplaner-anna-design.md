@@ -236,7 +236,7 @@ Das Template ist ein **Startvorschlag** (nicht alle 8h pro Tag belegt — bewuss
 | Schnellzeichnung | 7h (Mo–Fr je 1h + Sa 1h + So 1h) |
 | Orga & Verwaltung | 3,5h (Do 1,5h + Fr 2h) |
 | Flexibler Puffer | 6,5h (verteilt) |
-| **Gesamt Arbeit** | **44h** (8h × 5 Werktage + 4h Sa + 4h So) |
+| **Gesamt Arbeit** | **48h** (8h × 5 Werktage + 4h Sa + 4h So) |
 
 ---
 
