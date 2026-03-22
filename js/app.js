@@ -374,15 +374,24 @@ WP.app = (() => {
     const isEvent = block.category === 'event';
 
     // Structural fields (category, startTime, duration) → propagation dialog
-    const structuralFields = ['category', 'startTime', 'duration'];
+    const structuralFields = ['category', 'startTime', 'endTime'];
 
     bodyEl.querySelectorAll('[data-field]').forEach(el => {
       const field = el.dataset.field;
       const isStructural = structuralFields.includes(field);
 
       const handler = async () => {
-        let value = el.tagName === 'SELECT' ? el.value : el.value;
-        if (field === 'duration') value = parseInt(value, 10);
+        let value = el.value;
+
+        // endTime is a UI-only field — convert to duration before saving
+        if (field === 'endTime') {
+          const endMinutes   = WP.timeToMinutes(value);
+          const startMinutes = WP.timeToMinutes(block.startTime);
+          const newDuration  = endMinutes - startMinutes;
+          if (newDuration < 15) return; // guard
+          await handleStructuralChange(block, 'duration', newDuration);
+          return;
+        }
 
         if (isStructural && !state.isTemplateMode) {
           await handleStructuralChange(block, field, value);
@@ -1273,6 +1282,15 @@ WP.app = (() => {
 
   // Sync a single select/input in the open panel without re-rendering it
   function _syncPanelField(field, value) {
+    if (field === 'duration') {
+      // No duration field in panel — update endTime select instead
+      const block = _findBlock(state.openBlockId);
+      if (!block) return;
+      const endTime = WP.minutesToTime(WP.timeToMinutes(block.startTime) + value);
+      const el = document.querySelector('.panel-body [data-field="endTime"]');
+      if (el) el.value = endTime;
+      return;
+    }
     const el = document.querySelector(`.panel-body [data-field="${field}"]`);
     if (el) el.value = value;
   }

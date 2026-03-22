@@ -156,22 +156,20 @@ WP.render = {
       catOptions += `<option value="${key}"${block.category === key ? ' selected' : ''}>${val.label}</option>`;
     }
 
-    // Duration options (15min steps from 15 to 480)
-    let durOptions = '';
-    for (let m = 15; m <= 480; m += 15) {
-      const h = Math.floor(m / 60);
-      const min = m % 60;
-      const label = h > 0
-        ? (min > 0 ? `${h}h ${min}min` : `${h}h`)
-        : `${min}min`;
-      durOptions += `<option value="${m}"${block.duration === m ? ' selected' : ''}>${label}</option>`;
-    }
-
     // Start time options (08:00–19:45, 15min steps)
     let timeOptions = '';
     for (let m = WP.CALENDAR_START; m < WP.CALENDAR_END; m += 15) {
       const t = WP.minutesToTime(m);
       timeOptions += `<option value="${t}"${block.startTime === t ? ' selected' : ''}>${t}</option>`;
+    }
+
+    // End time options: startTime+15 up to CALENDAR_END, 15min steps
+    const startMin = WP.timeToMinutes(block.startTime);
+    const endMin   = startMin + block.duration;
+    let endTimeOptions = '';
+    for (let m = startMin + 15; m <= WP.CALENDAR_END; m += 15) {
+      const t = WP.minutesToTime(m);
+      endTimeOptions += `<option value="${t}"${m === endMin ? ' selected' : ''}>${t}</option>`;
     }
 
     // Tasks list
@@ -242,12 +240,12 @@ WP.render = {
             <select class="panel-select" data-field="category">${catOptions}</select>
           </div>
           <div>
-            <label class="panel-label">Startzeit</label>
+            <label class="panel-label">Start</label>
             <select class="panel-select" data-field="startTime">${timeOptions}</select>
           </div>
           <div>
-            <label class="panel-label">Dauer</label>
-            <select class="panel-select" data-field="duration">${durOptions}</select>
+            <label class="panel-label">Ende</label>
+            <select class="panel-select" data-field="endTime">${endTimeOptions}</select>
           </div>
         </div>
 
