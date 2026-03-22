@@ -49,6 +49,80 @@ WP.app = (() => {
     });
   }
 
+  // ─── Conflict resolution helpers ─────────────────────────────────────────────
+
+  // All blocks in active set that overlap [day, startTime, startTime+duration), excluding one id
+  function _conflictingBlocks(day, startTime, duration, excludeId) {
+    const startMin = WP.timeToMinutes(startTime);
+    const endMin   = startMin + duration;
+    return _blocks().filter(b => {
+      if (b.id === excludeId || b.day !== day) return false;
+      const bStart = WP.timeToMinutes(b.startTime);
+      const bEnd   = bStart + b.duration;
+      return startMin < bEnd && endMin > bStart;
+    });
+  }
+
+  // Shorten / push conflicting blocks so the slot [newStartMin, newEndMin) is free
+  function _applyShorten(conflicting, newStartMin, newEndMin) {
+    for (const b of conflicting) {
+      const bStart = WP.timeToMinutes(b.startTime);
+      const bEnd   = bStart + b.duration;
+      if (bStart < newStartMin) {
+        // Block starts before our slot: trim its end
+        b.duration = newStartMin - bStart;
+      } else {
+        // Block starts inside our slot: push it to start right after us
+        const pushedStart = newEndMin;
+        const pushedDur   = bEnd - newEndMin;
+        if (pushedDur >= 15 && pushedStart + pushedDur <= WP.CALENDAR_END) {
+          b.startTime = WP.minutesToTime(pushedStart);
+          b.duration  = pushedDur;
+        } else {
+          _removeBlock(b.id);
+        }
+      }
+    }
+  }
+
+  // Modal: "Kürzen" or "Tauschen" (if feasible) or "Abbrechen"
+  // origDay/origStartTime = where the moved block currently lives (for swap check)
+  function _showConflictModal(conflicting, block, origDay, origStartTime) {
+    return new Promise(resolve => {
+      const canSwap = conflicting.length === 1 && (() => {
+        const other    = conflicting[0];
+        const startMin = WP.timeToMinutes(origStartTime);
+        const endMin   = startMin + other.duration;
+        if (endMin > WP.CALENDAR_END) return false;
+        // Check that 'other' fits at block's original slot without colliding with anything else
+        return !_blocks().some(b => {
+          if (b.id === block.id || b.id === other.id || b.day !== origDay) return false;
+          const bS = WP.timeToMinutes(b.startTime);
+          return startMin < bS + b.duration && endMin > bS;
+        });
+      })();
+
+      const names = conflicting.map(b => WP.escHtml(b.title || b.category)).join(', ');
+      showModal(`
+        <h2 class="modal-title">Zeitraum bereits belegt</h2>
+        <p class="modal-text">Konflikt mit: <strong>${names}</strong></p>
+        <div class="modal-actions" style="flex-direction:column;align-items:stretch;gap:8px;">
+          <button class="btn btn--primary" data-resolve="shorten">Nachbar kürzen &amp; platzieren</button>
+          ${canSwap ? `<button class="btn btn--secondary" data-resolve="swap">Blöcke tauschen</button>` : ''}
+          <button class="btn btn--ghost" data-resolve="cancel">Abbrechen</button>
+        </div>
+      `);
+
+      document.getElementById('modal-overlay').addEventListener('click', function handler(e) {
+        const btn = e.target.closest('[data-resolve]');
+        if (!btn) return;
+        document.getElementById('modal-overlay').removeEventListener('click', handler);
+        closeModal();
+        resolve({ action: btn.dataset.resolve, conflicting });
+      }, { once: false });
+    });
+  }
+
   // ─── Toast ────────────────────────────────────────────────────────────────────
   function showToast(msg, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
@@ -596,10 +670,14 @@ WP.app = (() => {
     if (field === 'startTime' || field === 'duration') {
       const newStart = field === 'startTime' ? value : block.startTime;
       const newDur   = field === 'duration'  ? value : block.duration;
-      if (hasOverlap(_blocks(), block.day, newStart, newDur, block.id)) {
-        showToast('Dieser Zeitraum ist bereits belegt.', 'warning');
-        openPanel(block.id); // revert by re-rendering panel
-        return;
+      const panelConflicts = _conflictingBlocks(block.day, newStart, newDur, block.id);
+      if (panelConflicts.length > 0) {
+        const { action, conflicting } = await _showConflictModal(panelConflicts, block, block.day, block.startTime);
+        if (action === 'cancel') { openPanel(block.id); return; }
+        const startMin = WP.timeToMinutes(newStart);
+        if (action === 'shorten') _applyShorten(conflicting, startMin, startMin + newDur);
+        if (action === 'swap') { conflicting[0].day = block.day; conflicting[0].startTime = block.startTime; }
+        // fall through to apply the panel change normally
       }
     }
 
@@ -965,10 +1043,7 @@ WP.app = (() => {
     blockEl.style.opacity = '';
 
     // Use the already-computed snapped target from the preview
-    if (previewDay === undefined || previewConflict) {
-      if (previewConflict) showToast('Dieser Zeitraum ist bereits belegt', 'warning');
-      return;
-    }
+    if (previewDay === undefined) return;
 
     const newDay       = previewDay;
     const newStartTime = previewStart;
@@ -977,9 +1052,13 @@ WP.app = (() => {
 
     if (newDay === origDay && newStartTime === origStartTime) return; // no change
 
-    if (hasOverlap(_blocks(), newDay, newStartTime, block.duration, blockId)) {
-      showToast('Dieser Zeitraum ist bereits belegt', 'warning');
-      return;
+    const dragConflicts = _conflictingBlocks(newDay, newStartTime, block.duration, blockId);
+    if (dragConflicts.length > 0) {
+      const { action, conflicting } = await _showConflictModal(dragConflicts, block, origDay, origStartTime);
+      if (action === 'cancel') return;
+      const startMin = WP.timeToMinutes(newStartTime);
+      if (action === 'shorten') _applyShorten(conflicting, startMin, startMin + block.duration);
+      if (action === 'swap') { conflicting[0].day = origDay; conflicting[0].startTime = origStartTime; }
     }
 
     if (!state.isTemplateMode && block.fromTemplate) {
