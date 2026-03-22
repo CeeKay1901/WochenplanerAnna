@@ -1,0 +1,848 @@
+/* ─── CSS Variables ─────────────────────────────────────────────────────────── */
+:root {
+  --bg:        #fffdf9;
+  --surface:   #f5f0ea;
+  --border:    #e8e0d5;
+  --text:      #4a3728;
+  --text-sec:  #b09080;
+  --accent:    #d4956a;
+  --accent-dk: #c4622d;
+  --danger:    #c0392b;
+  --success:   #4a7c59;
+  --warning:   #c97c1a;
+  --radius:    6px;
+  --shadow:    0 2px 8px rgba(74, 55, 40, 0.10);
+  --shadow-lg: 0 8px 32px rgba(74, 55, 40, 0.15);
+  --panel-w:   360px;
+  --header-h:  96px;
+}
+
+/* ─── Reset & Base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+[contenteditable]:focus { outline: none; }
+[contenteditable]:empty::before {
+  content: attr(placeholder);
+  color: var(--text-sec);
+  font-style: italic;
+}
+
+/* ─── App Layout ─────────────────────────────────────────────────────────────── */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────────── */
+#app-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+}
+
+.header-month-goal {
+  flex: 1;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 13px;
+  color: var(--text-sec);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+  padding: 2px 6px;
+  border-radius: 3px;
+  min-width: 0;
+}
+
+.header-month-goal::before {
+  content: 'Monatsziel: ';
+  font-style: italic;
+}
+
+.header-month-goal:hover { background: var(--border); }
+.header-month-goal:focus { background: white; white-space: normal; overflow: visible; }
+
+.header-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+#header-week-num {
+  font-family: Georgia, serif;
+  font-size: 15px;
+  font-weight: bold;
+  color: var(--text);
+  min-width: 60px;
+  text-align: center;
+}
+
+#header-day-counter {
+  font-size: 12px;
+  color: var(--text-sec);
+  white-space: nowrap;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.header-bottom {
+  height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+#week-goal {
+  font-family: Georgia, serif;
+  font-size: 13px;
+  color: var(--text);
+  width: 100%;
+  padding: 4px 6px;
+  border-radius: 3px;
+  cursor: text;
+}
+
+#week-goal::before {
+  content: 'Wochenziel: ';
+  color: var(--text-sec);
+  font-style: italic;
+}
+
+#week-goal:hover { background: var(--border); }
+#week-goal:focus { background: white; }
+
+/* ─── Buttons ─────────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.btn:hover { background: var(--surface); border-color: var(--text-sec); }
+
+.btn--nav {
+  padding: 4px 10px;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.btn--primary {
+  background: var(--accent-dk);
+  color: white;
+  border-color: var(--accent-dk);
+}
+.btn--primary:hover { background: #a84e20; border-color: #a84e20; }
+
+.btn--secondary {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.btn--success {
+  background: var(--success);
+  color: white;
+  border-color: var(--success);
+}
+.btn--success:hover { background: #3a6347; }
+
+.btn--danger {
+  background: var(--danger);
+  color: white;
+  border-color: var(--danger);
+}
+.btn--danger:hover { background: #a93226; }
+
+.btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-sec);
+}
+.btn--ghost:hover { background: var(--surface); color: var(--text); }
+
+.btn--ghost-danger { color: var(--danger); }
+.btn--ghost-danger:hover { background: #fdecea; }
+
+.btn--small {
+  padding: 3px 8px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.btn--active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.btn--choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 20px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  cursor: pointer;
+  transition: all 0.15s;
+  min-width: 120px;
+  text-align: center;
+}
+.btn--choice:hover {
+  border-color: var(--accent);
+  background: var(--surface);
+  transform: translateY(-2px);
+}
+.choice-icon { font-size: 24px; }
+
+/* ─── Main content area ─────────────────────────────────────────────────────── */
+#main-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ─── Calendar Container ─────────────────────────────────────────────────────── */
+#calendar-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* ─── Calendar Header (sticky) ──────────────────────────────────────────────── */
+.calendar-header {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  border-bottom: 2px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.time-corner {
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.day-header {
+  border-right: 1px solid var(--border);
+  padding: 6px 8px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.day-header--today .day-name-date {
+  color: var(--accent-dk);
+  font-weight: bold;
+}
+
+.day-name-date {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.day-name {
+  font-family: Georgia, serif;
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--text);
+}
+
+.day-date {
+  font-size: 11px;
+  color: var(--text-sec);
+}
+
+.day-goal {
+  font-size: 11px;
+  color: var(--text);
+  font-family: Georgia, serif;
+  font-style: italic;
+  padding: 2px 4px;
+  border-radius: 3px;
+  cursor: text;
+  line-height: 1.3;
+  min-height: 16px;
+}
+
+.day-goal:hover { background: rgba(0,0,0,0.04); }
+.day-goal:focus { background: white; outline: 1px solid var(--accent); }
+
+/* ─── Calendar Body ─────────────────────────────────────────────────────────── */
+.calendar-body-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: clip;
+}
+
+.calendar-body {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  min-height: 720px;
+}
+
+/* ─── Time Axis ─────────────────────────────────────────────────────────────── */
+.time-axis {
+  position: relative;
+  height: 720px;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.hour-mark {
+  position: absolute;
+  right: 6px;
+  font-size: 10px;
+  color: var(--text-sec);
+  transform: translateY(-50%);
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* ─── Day Columns ───────────────────────────────────────────────────────────── */
+.day-col {
+  position: relative;
+  height: 720px;
+  border-right: 1px solid var(--border);
+}
+
+.hour-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--border);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* 30-min lines (lighter) — rendered via additional CSS gradient */
+.day-col::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 29px,
+    rgba(232, 224, 213, 0.3) 29px,
+    rgba(232, 224, 213, 0.3) 30px,
+    transparent 30px,
+    transparent 59px,
+    var(--border) 59px,
+    var(--border) 60px
+  );
+  background-size: 100% 60px;
+}
+
+/* ─── Blocks ─────────────────────────────────────────────────────────────────── */
+.block {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  transition: filter 0.1s, box-shadow 0.1s;
+  min-height: 15px;
+}
+
+.block:hover {
+  filter: brightness(1.05);
+  box-shadow: var(--shadow);
+  z-index: 10;
+}
+
+.block-inner {
+  padding: 4px 6px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.block-title {
+  font-family: Georgia, serif;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.block-tasks-badge {
+  font-size: 10px;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+.block-countdown {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: bold;
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
+.block-icon {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* Progress bar at bottom */
+.block-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.block-progress-fill {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.6);
+  transition: width 1s linear;
+}
+
+/* Timer state animations */
+@keyframes pulse-warning {
+  0%, 100% { box-shadow: 0 0 0 2px #e87c1a; }
+  50%       { box-shadow: 0 0 0 4px rgba(232, 124, 26, 0.4); }
+}
+
+@keyframes pulse-overtime {
+  0%, 100% { box-shadow: 0 0 0 2px #c0392b; }
+  50%       { box-shadow: 0 0 0 4px rgba(192, 57, 43, 0.4); }
+}
+
+.block--running  { /* no color change — category color stays */ }
+.block--warning  { animation: pulse-warning 1.5s ease-in-out infinite; }
+.block--overtime { animation: pulse-overtime 1s ease-in-out infinite; }
+.block--done     { opacity: 0.65; }
+.block--paused   { opacity: 0.8; }
+
+/* ─── Detail Panel ──────────────────────────────────────────────────────────── */
+#detail-panel {
+  width: var(--panel-w);
+  min-width: var(--panel-w);
+  max-width: var(--panel-w);
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+#detail-panel.panel--open {
+  transform: translateX(0);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.panel-title {
+  flex: 1;
+  font-family: Georgia, serif;
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--text);
+  border-left: 4px solid var(--accent);
+  padding-left: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-header-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px 24px;
+}
+
+.panel-section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-section:last-child { border-bottom: none; }
+
+.panel-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.panel-row > div { flex: 1; min-width: 80px; }
+
+.panel-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-sec);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.panel-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  font-family: Georgia, serif;
+  transition: border-color 0.15s;
+}
+
+.panel-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.panel-select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.panel-select:focus { outline: none; border-color: var(--accent); }
+.panel-select--small { width: auto; font-size: 11px; padding: 3px 6px; }
+
+.panel-textarea {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  font-family: Georgia, serif;
+  resize: vertical;
+  line-height: 1.5;
+}
+.panel-textarea:focus { outline: none; border-color: var(--accent); }
+
+/* ─── Timer Section ─────────────────────────────────────────────────────────── */
+.panel-timer { background: var(--surface); border-radius: var(--radius); padding: 12px; margin: 0; }
+
+.timer-display {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.timer-elapsed {
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  font-weight: bold;
+  color: var(--text);
+  line-height: 1;
+}
+
+.timer-remaining {
+  font-size: 12px;
+  color: var(--text-sec);
+}
+
+.timer-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ─── Tasks & Checklists ─────────────────────────────────────────────────────── */
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.task-item, .checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.task-item:hover, .checklist-item:hover { background: var(--border); }
+
+.task-check, .checklist-check {
+  cursor: pointer;
+  accent-color: var(--accent-dk);
+  flex-shrink: 0;
+}
+
+.task-text, .checklist-text {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.task-done {
+  text-decoration: line-through;
+  color: var(--text-sec);
+}
+
+.task-delete-btn, .checklist-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-sec);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0;
+  transition: opacity 0.1s;
+  flex-shrink: 0;
+}
+
+.task-item:hover .task-delete-btn,
+.checklist-item:hover .checklist-delete-btn { opacity: 1; }
+
+.task-delete-btn:hover, .checklist-delete-btn:hover { color: var(--danger); }
+
+.add-task-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.add-task-row .panel-input { font-size: 12px; }
+
+.checklist-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+/* ─── Toast notifications ────────────────────────────────────────────────────── */
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--text);
+  color: white;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.25s, transform 0.25s;
+  pointer-events: auto;
+  max-width: 400px;
+  text-align: center;
+}
+
+.toast--show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast--success  { background: var(--success); }
+.toast--error    { background: var(--danger); }
+.toast--warning  { background: var(--warning); }
+.toast--info     { background: #5a7fa6; }
+
+/* ─── Modal ──────────────────────────────────────────────────────────────────── */
+#modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(74, 55, 40, 0.45);
+  z-index: 9000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+#modal-overlay.modal--open {
+  display: flex;
+}
+
+.modal {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 28px 32px;
+  max-width: 480px;
+  width: 90vw;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-title {
+  font-family: Georgia, serif;
+  font-size: 20px;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.modal-text {
+  font-size: 14px;
+  color: var(--text-sec);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.modal-choices {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* ─── Context Menu ───────────────────────────────────────────────────────────── */
+#context-menu {
+  position: fixed;
+  z-index: 8000;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  min-width: 170px;
+  padding: 4px 0;
+}
+
+.ctx-item {
+  display: block;
+  width: 100%;
+  padding: 7px 14px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.ctx-item:hover { background: var(--surface); }
+.ctx-item--danger { color: var(--danger); }
+
+.ctx-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* ─── Scrollbar styling ─────────────────────────────────────────────────────── */
+.calendar-body-scroll::-webkit-scrollbar { width: 6px; }
+.calendar-body-scroll::-webkit-scrollbar-track { background: var(--surface); }
+.calendar-body-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.panel-body::-webkit-scrollbar { width: 4px; }
+.panel-body::-webkit-scrollbar-track { background: transparent; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ─── Panel body inner padding ──────────────────────────────────────────────── */
+.panel-body-inner { padding-top: 4px; }
+
+/* ─── Drag ghost ─────────────────────────────────────────────────────────────── */
+#drag-ghost {
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+/* ─── Responsive tweaks ──────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  :root { --panel-w: 300px; }
+  .day-name { font-size: 12px; }
+  .day-date { font-size: 10px; }
+}

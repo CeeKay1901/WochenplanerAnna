@@ -1,0 +1,14 @@
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude / Superpowers working dirs
+.claude/
+.superpowers/
+
+# Node (if ever used)
+node_modules/
